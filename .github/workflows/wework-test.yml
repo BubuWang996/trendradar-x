@@ -1,0 +1,47 @@
+name: TrendRadar WeWork test notification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send one clearly labeled text message
+        env:
+          WEWORK_WEBHOOK_URL: ${{ secrets.WEWORK_WEBHOOK_URL }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          url = os.environ.get("WEWORK_WEBHOOK_URL")
+          if not url:
+              raise SystemExit("WEWORK_WEBHOOK_URL is missing")
+
+          payload = {
+              "msgtype": "text",
+              "text": {
+                  "content": "TrendRadar 测试通知\n云端 RSS 抓取与 R2 持久化已完成验证。此消息仅用于确认个人微信收信，不包含新闻。"
+              },
+          }
+          request = urllib.request.Request(
+              url,
+              data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  result = json.load(response)
+          except Exception:
+              raise SystemExit("WeWork test request failed") from None
+          if result.get("errcode") != 0:
+              raise SystemExit("WeWork rejected the test message")
+          print("WeWork accepted one TrendRadar test notification")
+          PY
+
