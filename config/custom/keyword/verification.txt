@@ -1,0 +1,14 @@
+# 初次云端链路验证用宽松关键词，正式选题策略另行制定。
+[WORD_GROUPS]
+
+OpenAI
+ChatGPT
+GPT
+
+Hugging Face
+模型
+model
+
+/\bAI\b/
+人工智能
+
