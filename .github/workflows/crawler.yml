@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: crawler-${{ github.ref_name }}
+  group: crawler-r2
   cancel-in-progress: false
 
 permissions:
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   crawl:
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -101,30 +102,10 @@ jobs:
         if: success()
         env:
           FREQUENCY_WORDS_PATH: config/custom/keyword/verification.txt
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DINGTALK_WEBHOOK_URL: ${{ secrets.DINGTALK_WEBHOOK_URL }}
           WEWORK_WEBHOOK_URL: ${{ secrets.WEWORK_WEBHOOK_URL }}
           WEWORK_MSG_TYPE: text
-          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-          EMAIL_TO: ${{ secrets.EMAIL_TO }}
-          EMAIL_SMTP_SERVER: ${{ secrets.EMAIL_SMTP_SERVER }}
-          EMAIL_SMTP_PORT: ${{ secrets.EMAIL_SMTP_PORT }}
-          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
-          NTFY_SERVER_URL: ${{ secrets.NTFY_SERVER_URL }}
-          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
-          BARK_URL: ${{ secrets.BARK_URL }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          # 通用Webhook配置
-          GENERIC_WEBHOOK_URL: ${{ secrets.GENERIC_WEBHOOK_URL }}
-          GENERIC_WEBHOOK_TEMPLATE: ${{ secrets.GENERIC_WEBHOOK_TEMPLATE }}
-          # AI 配置（ai_analysis 和 ai_translation 共享模型配置）
-          AI_ANALYSIS_ENABLED: ${{ secrets.AI_ANALYSIS_ENABLED }}
-          AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          AI_MODEL: ${{ secrets.AI_MODEL }}
-          AI_API_BASE: ${{ secrets.AI_API_BASE }}
+          AI_ANALYSIS_ENABLED: "false"
+          AI_TRANSLATION_ENABLED: "false"
           # 远程存储配置
           S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           S3_ACCESS_KEY_ID: ${{ secrets.S3_ACCESS_KEY_ID }}
@@ -132,50 +113,5 @@ jobs:
           S3_ENDPOINT_URL: ${{ secrets.S3_ENDPOINT_URL }}
           S3_REGION: ${{ secrets.S3_REGION }}
           GITHUB_ACTIONS: true
-        run: uv run python -m trendradar
-
-      # --------------------------------------------------------------------------------
-      # ☁️ CLOUDFLARE PAGES DEPLOY / 部署到 Cloudflare Pages（可选）
-      # --------------------------------------------------------------------------------
-      # 将爬虫生成的 index.html 自动部署到 Cloudflare Pages，国内访问比 GitHub Pages 更快。
-      # 仅当下面三个 Secrets 均已配置时才会执行，缺任意一个则自动跳过，不影响其它流程：
-      #   - CLOUDFLARE_API_TOKEN     权限：Account → Cloudflare Pages → Edit
-      #   - CLOUDFLARE_ACCOUNT_ID    Cloudflare 账户 ID
-      #   - CLOUDFLARE_PROJECT_NAME  Cloudflare Pages 项目名（需提前在 Dashboard 创建）
-      # 配置教程详见 README「自动部署到 Cloudflare Pages」章节。
-      # --------------------------------------------------------------------------------
-      - name: Check Cloudflare config
-        if: success()
-        id: cf_check
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
-        run: |
-          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] && [ -n "$CLOUDFLARE_PROJECT_NAME" ]; then
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-            echo "✅ 检测到 Cloudflare 配置，准备部署到 Cloudflare Pages"
-          else
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-            echo "ℹ️ 未配置 Cloudflare Secrets，跳过 Cloudflare Pages 部署"
-          fi
-
-      - name: Prepare Cloudflare Pages assets
-        if: success() && steps.cf_check.outputs.enabled == 'true'
-        run: |
-          if [ ! -f index.html ]; then
-            echo "❌ 未找到 index.html，请确认爬虫已生成网页报告"
-            exit 1
-          fi
-          rm -rf cloudflare_dist
-          mkdir -p cloudflare_dist
-          cp index.html cloudflare_dist/index.html
-
-      - name: Deploy to Cloudflare Pages
-        if: success() && steps.cf_check.outputs.enabled == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy cloudflare_dist --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+        run: uv run python -m trendradar.cloud_run
 

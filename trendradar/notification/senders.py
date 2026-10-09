@@ -453,7 +453,7 @@ def send_to_wework(
                         time.sleep(batch_interval)
                 else:
                     print(
-                        f"{log_prefix}第 {i}/{len(batches)} 批次发送失败 [{report_type}]，错误：{result.get('errmsg')}"
+                        f"{log_prefix}第 {i}/{len(batches)} 批次发送失败 [{report_type}]，错误码：{result.get('errcode')}"
                     )
                     return False
             else:
@@ -462,7 +462,7 @@ def send_to_wework(
                 )
                 return False
         except Exception as e:
-            print(f"{log_prefix}第 {i}/{len(batches)} 批次发送出错 [{report_type}]：{e}")
+            print(f"{log_prefix}第 {i}/{len(batches)} 批次发送出错 [{report_type}]：{type(e).__name__}")
             return False
 
     print(f"{log_prefix}所有 {len(batches)} 批次发送完成 [{report_type}]")

@@ -143,6 +143,8 @@ class StorageManager:
             print("[存储管理器] 请确保已安装 boto3: pip install boto3")
             return None
         except Exception as e:
+            if self.is_github_actions():
+                raise RuntimeError("R2 initialization failed") from None
             print(f"[存储管理器] 远程后端初始化失败: {e}")
             return None
 
@@ -201,11 +203,17 @@ class StorageManager:
 
     def save_news_data(self, data: NewsData) -> bool:
         """保存新闻数据"""
-        return self.get_backend().save_news_data(data)
+        success = self.get_backend().save_news_data(data)
+        if self.is_github_actions() and not success:
+            raise RuntimeError("R2 news save failed; notifications stopped")
+        return success
 
     def save_rss_data(self, data: RSSData) -> bool:
         """保存 RSS 数据"""
-        return self.get_backend().save_rss_data(data)
+        success = self.get_backend().save_rss_data(data)
+        if self.is_github_actions() and not success:
+            raise RuntimeError("R2 RSS save failed; notifications stopped")
+        return success
 
     def get_rss_data(self, date: Optional[str] = None) -> Optional[RSSData]:
         """获取指定日期的所有 RSS 数据（当日汇总模式）"""

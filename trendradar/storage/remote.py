@@ -8,6 +8,7 @@
 """
 
 import pytz
+import os
 import re
 import shutil
 import sys
@@ -102,6 +103,9 @@ class RemoteStorageBackend(SQLiteStorageMixin, StorageBackend):
         s3_config = BotoConfig(
             s3={"addressing_style": "virtual"},
             signature_version=signature_version,
+            retries={'total_max_attempts': 1},
+            connect_timeout=10,
+            read_timeout=30,
         )
 
         client_kwargs = {
@@ -197,10 +201,14 @@ class RemoteStorageBackend(SQLiteStorageMixin, StorageBackend):
             # S3 兼容存储可能返回 404, NoSuchKey, 或其他变体
             if error_code in ("404", "NoSuchKey", "Not Found"):
                 return False
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                raise RuntimeError("R2 object check failed; notifications stopped") from None
             # 其他错误（如权限问题）也视为不存在，但打印警告
             print(f"[远程存储] 检查对象存在性失败 ({r2_key}): {e}")
             return False
         except Exception as e:
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                raise RuntimeError("R2 connection failed; notifications stopped") from None
             print(f"[远程存储] 检查对象存在性异常 ({r2_key}): {e}")
             return False
 
@@ -246,9 +254,13 @@ class RemoteStorageBackend(SQLiteStorageMixin, StorageBackend):
                 print(f"[远程存储] 文件不存在，将创建新数据库: {r2_key}")
                 return None
             else:
+                if os.environ.get("GITHUB_ACTIONS") == "true":
+                    raise RuntimeError("R2 state download failed") from None
                 print(f"[远程存储] 下载失败 (错误码: {error_code}): {e}")
                 raise
         except Exception as e:
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                raise RuntimeError("R2 state download failed") from None
             print(f"[远程存储] 下载异常: {e}")
             raise
 
@@ -317,6 +329,8 @@ class RemoteStorageBackend(SQLiteStorageMixin, StorageBackend):
                 return False
 
         except Exception as e:
+            if os.environ.get("GITHUB_ACTIONS") == "true":
+                raise RuntimeError("R2 write failed; notifications stopped") from None
             print(f"[远程存储] 上传失败: {e}")
             return False
 

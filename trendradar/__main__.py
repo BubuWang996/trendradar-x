@@ -8,6 +8,7 @@ TrendRadar 主程序
 
 import argparse
 import os
+import sys
 import webbrowser
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -891,6 +892,9 @@ class NewsAnalyzer:
                 print("未配置任何通知渠道，跳过通知发送")
                 return False
 
+            if self.is_github_actions and (not results or not all(results.values())):
+                raise RuntimeError("WeWork delivery failed; no automatic resend")
+
             # 记录推送成功
             if any(results.values()):
                 if schedule.once_push and schedule.period_key:
@@ -1084,6 +1088,8 @@ class NewsAnalyzer:
             print("[RSS] 请安装 feedparser: pip install feedparser")
             return None, None, None, set()
         except Exception as e:
+            if self.is_github_actions:
+                raise RuntimeError("RSS collection or R2 state processing failed") from None
             print(f"[RSS] 抓取失败: {e}")
             return None, None, None, set()
 
@@ -1629,7 +1635,7 @@ class NewsAnalyzer:
 
         except Exception as e:
             print(f"分析流程执行出错: {e}")
-            if self.ctx.config.get("DEBUG", False):
+            if self.is_github_actions or self.ctx.config.get("DEBUG", False):
                 raise
         finally:
             # 清理资源（包括过期数据清理和数据库连接关闭）
@@ -1705,7 +1711,12 @@ def main():
         print("  • config/config.yaml")
         print("  • config/frequency_words.txt")
         print("\n参考项目文档进行正确配置")
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            sys.exit(1)
     except Exception as e:
+        if os.environ.get("GITHUB_ACTIONS") == "true":
+            print(f"❌ Cloud run failed ({type(e).__name__}); inspect sanitized step logs")
+            sys.exit(1)
         print(f"❌ 程序运行错误: {e}")
         if debug_mode:
             raise
