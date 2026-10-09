@@ -99,8 +99,7 @@ class StorageManager:
                 if self._has_remote_config():
                     return "remote"
                 else:
-                    print("[存储管理器] GitHub Actions 环境但未配置远程存储，使用本地存储")
-                    return "local"
+                    raise RuntimeError("GitHub Actions 远程存储配置不完整，禁止使用临时本地存储")
             else:
                 return "local"
         return self.backend_type
@@ -157,6 +156,8 @@ class StorageManager:
                 if self._backend:
                     print(f"[存储管理器] 使用远程存储后端")
                 else:
+                    if self.is_github_actions():
+                        raise RuntimeError("GitHub Actions 远程存储初始化失败，禁止回退到临时本地存储")
                     print("[存储管理器] 回退到本地存储")
                     resolved_type = "local"
 
@@ -418,3 +419,4 @@ def get_storage_manager(
         )
 
     return _storage_manager
+
